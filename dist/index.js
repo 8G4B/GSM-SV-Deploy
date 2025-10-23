@@ -55275,7 +55275,7 @@ class SSHDeployer {
         this.deploySpec = yaml.load(content);
         core.info('Loaded deployspec.yml');
     }
-    async executeHooks(hookName) {
+    async executeHooks(hookName, allowMissing = false) {
         const hooks = this.deploySpec.hooks?.[hookName];
         if (!hooks || hooks.length === 0) {
             core.info(`No hooks defined for ${hookName}`);
@@ -55283,15 +55283,23 @@ class SSHDeployer {
         }
         core.info(`Executing ${hookName} hooks...`);
         for (const hook of hooks) {
-            await this.executeHook(hook, hookName);
+            await this.executeHook(hook, hookName, allowMissing);
         }
     }
-    async executeHook(hook, hookName) {
+    async executeHook(hook, hookName, allowMissing = false) {
         const scriptPath = path.join(this.inputs.targetPath, hook.location);
         const timeout = hook.timeout || 300;
         const runas = hook.runas || this.inputs.user;
         core.info(`Running ${hook.location} (timeout: ${timeout}s, runas: ${runas})`);
         try {
+            // Check if script exists first (only for pre-install hooks)
+            if (allowMissing) {
+                const checkResult = await this.ssh.execCommand(`test -f ${scriptPath}`);
+                if (checkResult.code !== 0) {
+                    core.warning(`⊘ ${hook.location} not found, skipping (first deployment or script removed)`);
+                    return;
+                }
+            }
             const command = runas !== this.inputs.user
                 ? `sudo -u ${runas} bash ${scriptPath}`
                 : `bash ${scriptPath}`;
@@ -55376,8 +55384,8 @@ class SSHDeployer {
             await this.connect();
             this.loadDeploySpec();
             // Deployment lifecycle
-            await this.executeHooks('ApplicationStop');
-            await this.executeHooks('BeforeInstall');
+            await this.executeHooks('ApplicationStop', true);
+            await this.executeHooks('BeforeInstall', true);
             await this.uploadFiles();
             await this.setPermissions();
             await this.executeHooks('AfterInstall');

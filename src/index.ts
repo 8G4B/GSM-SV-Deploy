@@ -64,7 +64,7 @@ class SSHDeployer {
     core.info('Loaded deployspec.yml');
   }
 
-  private async executeHooks(hookName: keyof NonNullable<DeploySpec['hooks']>): Promise<void> {
+  private async executeHooks(hookName: keyof NonNullable<DeploySpec['hooks']>, allowMissing: boolean = false): Promise<void> {
     const hooks = this.deploySpec.hooks?.[hookName];
     if (!hooks || hooks.length === 0) {
       core.info(`No hooks defined for ${hookName}`);
@@ -74,11 +74,11 @@ class SSHDeployer {
     core.info(`Executing ${hookName} hooks...`);
 
     for (const hook of hooks) {
-      await this.executeHook(hook, hookName);
+      await this.executeHook(hook, hookName, allowMissing);
     }
   }
 
-  private async executeHook(hook: DeploySpecHook, hookName: string): Promise<void> {
+  private async executeHook(hook: DeploySpecHook, hookName: string, allowMissing: boolean = false): Promise<void> {
     const scriptPath = path.join(this.inputs.targetPath, hook.location);
     const timeout = hook.timeout || 300;
     const runas = hook.runas || this.inputs.user;
@@ -86,6 +86,15 @@ class SSHDeployer {
     core.info(`Running ${hook.location} (timeout: ${timeout}s, runas: ${runas})`);
 
     try {
+      // Check if script exists first (only for pre-install hooks)
+      if (allowMissing) {
+        const checkResult = await this.ssh.execCommand(`test -f ${scriptPath}`);
+        if (checkResult.code !== 0) {
+          core.warning(`⊘ ${hook.location} not found, skipping (first deployment or script removed)`);
+          return;
+        }
+      }
+
       const command = runas !== this.inputs.user
         ? `sudo -u ${runas} bash ${scriptPath}`
         : `bash ${scriptPath}`;
@@ -196,8 +205,8 @@ class SSHDeployer {
       this.loadDeploySpec();
 
       // Deployment lifecycle
-      await this.executeHooks('ApplicationStop');
-      await this.executeHooks('BeforeInstall');
+      await this.executeHooks('ApplicationStop', true);
+      await this.executeHooks('BeforeInstall', true);
       await this.uploadFiles();
       await this.setPermissions();
       await this.executeHooks('AfterInstall');
