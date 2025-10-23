@@ -191,7 +191,7 @@ class SSHDeployer {
         const typeFlag = type === 'file' ? '-type f' : type === 'directory' ? '-type d' : '';
 
         if (perm.mode) {
-          const modeStr = typeof perm.mode === 'number' ? perm.mode.toString(8) : perm.mode;
+          const modeStr = String(perm.mode);
           const chmodCmd = `find ${targetDir} -name "${perm.pattern}" ${typeFlag} -exec chmod ${modeStr} {} \\;`;
 
           const chmodResult = await this.ssh.execCommand(chmodCmd);
