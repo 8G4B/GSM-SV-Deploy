@@ -55369,12 +55369,27 @@ class SSHDeployer {
         core.info('Setting file permissions...');
         for (const perm of permissions) {
             const targetDir = path.join(this.inputs.targetPath, perm.object);
-            if (perm.mode) {
-                const modeStr = typeof perm.mode === 'number' ? perm.mode.toString(8) : perm.mode;
-                await this.ssh.execCommand(`find ${targetDir} -name "${perm.pattern}" -type f -exec chmod ${modeStr} {} \\;`);
-            }
-            if (perm.owner && perm.group) {
-                await this.ssh.execCommand(`find ${targetDir} -name "${perm.pattern}" -type f -exec chown ${perm.owner}:${perm.group} {} \\;`);
+            const types = perm.type || ['file'];
+            for (const type of types) {
+                const typeFlag = type === 'file' ? '-type f' : type === 'directory' ? '-type d' : '';
+                if (perm.mode) {
+                    const modeStr = typeof perm.mode === 'number' ? perm.mode.toString(8) : perm.mode;
+                    const chmodCmd = `find ${targetDir} -name "${perm.pattern}" ${typeFlag} -exec chmod ${modeStr} {} \\;`;
+                    const chmodResult = await this.ssh.execCommand(chmodCmd);
+                    if (chmodResult.code !== 0) {
+                        core.warning(`Failed to set mode ${modeStr} on ${targetDir}/${perm.pattern}: ${chmodResult.stderr}`);
+                    }
+                    else {
+                        core.info(`✓ Set mode ${modeStr} on ${targetDir}/${perm.pattern}`);
+                    }
+                }
+                if (perm.owner && perm.group) {
+                    const chownCmd = `find ${targetDir} -name "${perm.pattern}" ${typeFlag} -exec chown ${perm.owner}:${perm.group} {} \\;`;
+                    const chownResult = await this.ssh.execCommand(chownCmd);
+                    if (chownResult.code !== 0) {
+                        core.warning(`Failed to set owner on ${targetDir}/${perm.pattern}: ${chownResult.stderr}`);
+                    }
+                }
             }
         }
         core.info('✓ Permissions set successfully');
