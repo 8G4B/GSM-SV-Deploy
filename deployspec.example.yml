@@ -1,0 +1,52 @@
+version: 1.0
+
+hooks:
+  # ApplicationStop - 애플리케이션 중지 전 실행
+  ApplicationStop:
+    - location: scripts/stop_application.sh
+      timeout: 300
+      runas: root
+
+  # BeforeInstall - 파일 복사 전 실행
+  BeforeInstall:
+    - location: scripts/before_install.sh
+      timeout: 300
+      runas: root
+
+  # AfterInstall - 파일 복사 후 실행
+  AfterInstall:
+    - location: scripts/after_install.sh
+      timeout: 300
+      runas: root
+    - location: scripts/setup_permissions.sh
+      timeout: 60
+      runas: root
+
+  # ApplicationStart - 애플리케이션 시작
+  ApplicationStart:
+    - location: scripts/start_application.sh
+      timeout: 300
+      runas: root
+
+  # ValidateService - 배포 검증
+  ValidateService:
+    - location: scripts/validate_service.sh
+      timeout: 300
+      runas: root
+
+# 파일 권한 설정 (선택사항)
+permissions:
+  - object: /
+    pattern: "**"
+    owner: root
+    group: root
+    mode: 644
+    type:
+      - file
+  - object: /scripts
+    pattern: "*.sh"
+    owner: root
+    group: root
+    mode: 755
+    type:
+      - file

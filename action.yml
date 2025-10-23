@@ -1,0 +1,40 @@
+name: 'SSH Remote Deploy'
+description: 'Deploy application to remote server via SSH with deployment lifecycle hooks'
+author: 'snowykte0426'
+
+branding:
+  icon: 'upload-cloud'
+  color: 'blue'
+
+inputs:
+  host:
+    description: 'Remote server hostname or IP address'
+    required: true
+  port:
+    description: 'SSH port'
+    required: false
+    default: '22'
+  user:
+    description: 'SSH username'
+    required: true
+  password:
+    description: 'SSH password (use either password or key)'
+    required: false
+  key:
+    description: 'SSH private key (use either password or key)'
+    required: false
+  deployspec_path:
+    description: 'Path to deployspec.yml file'
+    required: false
+    default: 'deployspec.yml'
+  source_path:
+    description: 'Source directory to deploy'
+    required: false
+    default: '.'
+  target_path:
+    description: 'Target directory on remote server'
+    required: true
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
