@@ -55341,9 +55341,13 @@ class SSHDeployer {
             core.info(`Uploading archive to ${this.inputs.host}...`);
             await this.ssh.putFile(localArchivePath, remoteArchivePath);
             core.info('✓ Archive uploaded');
-            // Create target directory and extract archive
-            core.info(`Extracting archive to ${this.inputs.targetPath}...`);
+            // Clean and recreate target directory
+            core.info(`Cleaning target directory: ${this.inputs.targetPath}`);
+            await this.ssh.execCommand(`rm -rf ${this.inputs.targetPath}`);
             await this.ssh.execCommand(`mkdir -p ${this.inputs.targetPath}`);
+            core.info('✓ Target directory cleaned');
+            // Extract archive
+            core.info(`Extracting archive to ${this.inputs.targetPath}...`);
             const extractResult = await this.ssh.execCommand(`tar -xzf ${remoteArchivePath} -C ${this.inputs.targetPath}`);
             if (extractResult.code !== 0) {
                 throw new Error(`Failed to extract archive: ${extractResult.stderr}`);
